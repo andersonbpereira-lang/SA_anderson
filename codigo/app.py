@@ -20,6 +20,7 @@ Use somente dados fictícios (nada de dados pessoais reais).
 
 import sqlite3
 import sys
+from flask import Flask, jsonify, request, send_from_directory
 from datetime import datetime
 from pathlib import Path
 
@@ -658,8 +659,252 @@ def executar_testes():
     print("Todos os testes passaram.")
 
 
+
+
+# ----------------------------------------------------------------------------
+# API WEB - a interface utiliza o mesmo SQLite do programa de terminal.
+# O login é apenas demonstrativo; esta aplicação não possui autenticação real.
+# ----------------------------------------------------------------------------
+
+app = Flask(__name__, static_folder=None)
+PASTA_INTERFACE = Path(__file__).resolve().parent.parent / "interface"
+
+
+def resposta_erro(mensagem, status=400):
+    return jsonify({"erro": mensagem}), status
+
+
+def paciente_para_json(paciente):
+    return {
+        "id": paciente["id"],
+        "name": paciente["nome"],
+        "age": calcular_idade(paciente["data_nascimento"]),
+        "weight": paciente["peso_kg"],
+        "height": paciente["altura_m"],
+        "bmi": paciente["imc"],
+        "blood": paciente["tipo_sanguineo"],
+        "allergies": paciente["alergias"],
+        "createdAt": paciente["criado_em"],
+    }
+
+
+def atendimento_para_json(atendimento):
+    return {
+        "id": atendimento["id"],
+        "patientId": atendimento["paciente_id"],
+        "complaint": atendimento["queixa"],
+        "injury": atendimento["tipo_ferimento"],
+        "pain": atendimento["nivel_dor"],
+        "oxygen": atendimento["saturacao"],
+        "heartRate": atendimento["freq_cardiaca"],
+        "temperature": atendimento["temperatura"],
+        "systolic": atendimento["pressao_sistolica"],
+        "diastolic": atendimento["pressao_diastolica"],
+        "conscious": bool(atendimento["consciente"]),
+        "priority": {
+            "VERMELHO": "red", "LARANJA": "orange", "AMARELO": "yellow",
+            "VERDE": "green", "AZUL": "blue"
+        }.get(atendimento["cor"], "blue"),
+        "priorityLabel": atendimento["cor"],
+        "points": atendimento["pontos"],
+        "level": atendimento["nivel_gravidade"],
+        "status": {
+            "aguardando": "waiting",
+            "em atendimento": "active",
+            "finalizado": "finished"
+        }.get(atendimento["status"], "waiting"),
+        "createdAt": atendimento["data_hora"],
+    }
+
+
+@app.route("/")
+def pagina_inicial():
+    return send_from_directory(PASTA_INTERFACE, "index.html")
+
+
+@app.route("/<path:arquivo>")
+def arquivos_interface(arquivo):
+    return send_from_directory(PASTA_INTERFACE, arquivo)
+
+
+@app.get("/api/dados")
+def api_listar_dados():
+    conexao = conectar()
+    try:
+        criar_tabelas(conexao)
+        pacientes = conexao.execute(
+            "SELECT * FROM pacientes ORDER BY id DESC"
+        ).fetchall()
+        atendimentos = conexao.execute(
+            "SELECT * FROM atendimentos ORDER BY data_hora DESC, id DESC"
+        ).fetchall()
+        return jsonify({
+            "patients": [paciente_para_json(p) for p in pacientes],
+            "appointments": [atendimento_para_json(a) for a in atendimentos],
+        })
+    finally:
+        conexao.close()
+
+
+@app.post("/api/login")
+def api_login():
+    dados = request.get_json(silent=True) or {}
+    valido = (
+        dados.get("username") == "admin"
+        and dados.get("password") == "hospital123"
+    )
+    if not valido:
+        return resposta_erro("Usuário ou senha incorretos.", 401)
+    return jsonify({
+        "ok": True,
+        "aviso": "Acesso demonstrativo. Não é autenticação segura."
+    })
+
+
+@app.post("/api/pacientes")
+def api_cadastrar_paciente():
+    dados = request.get_json(silent=True) or {}
+    try:
+        nome = str(dados.get("name", "")).strip()
+        idade = int(dados.get("age"))
+        peso = float(dados.get("weight"))
+        altura = float(dados.get("height"))
+        sexo = str(dados.get("sex", "M")).upper()
+        sangue = str(dados.get("blood", "NAO SEI")).upper()
+        if sangue == "NÃO INFORMADO":
+            sangue = "NAO SEI"
+        if not 0 <= idade <= 120:
+            raise ValueError("Idade deve estar entre 0 e 120 anos.")
+        hoje = datetime.now().date()
+        ano = hoje.year - idade
+        try:
+            nascimento = hoje.replace(year=ano)
+        except ValueError:
+            nascimento = hoje.replace(year=ano, day=28)
+        paciente_id = cadastrar_paciente(
+            conectar(), nome, nascimento.isoformat(), sexo, peso, altura,
+            sangue, str(dados.get("allergies", "nenhuma"))
+        )
+        return jsonify({"id": paciente_id, "mensagem": "Paciente cadastrado."}), 201
+    except (TypeError, ValueError) as erro:
+        return resposta_erro(str(erro))
+    except sqlite3.Error:
+        return resposta_erro("Não foi possível salvar o paciente.", 500)
+
+
+@app.delete("/api/pacientes/<int:paciente_id>")
+def api_excluir_paciente(paciente_id):
+    conexao = conectar()
+    try:
+        em_andamento = conexao.execute(
+            """SELECT COUNT(*) FROM atendimentos
+               WHERE paciente_id = ? AND status IN ('aguardando', 'em atendimento')""",
+            (paciente_id,)
+        ).fetchone()[0]
+        if em_andamento:
+            return resposta_erro(
+                "Finalize os atendimentos antes de excluir o paciente."
+            )
+        excluir_paciente(conexao, paciente_id)
+        return jsonify({"ok": True})
+    except LookupError as erro:
+        return resposta_erro(str(erro), 404)
+    finally:
+        conexao.close()
+
+
+@app.post("/api/atendimentos")
+def api_registrar_atendimento():
+    dados = request.get_json(silent=True) or {}
+    conexao = conectar()
+    try:
+        paciente_id = int(dados.get("patientId"))
+        mapa_ferimentos = {
+            "Corte": "corte superficial",
+            "Contusão": "contusao",
+            "Queda": "entorse",
+            "Queimadura": "queimadura leve",
+            "Fratura suspeita": "fratura",
+            "Outro": "nenhum",
+            "Não informado": "nenhum",
+        }
+        ferimento = mapa_ferimentos.get(
+            str(dados.get("injury", "Não informado")), "nenhum"
+        )
+        atendimento_id, nivel, pontos, motivos = registrar_atendimento(
+            conexao,
+            paciente_id,
+            str(dados.get("complaint", "")),
+            ferimento,
+            int(dados.get("pain", 0)),
+            int(dados.get("oxygen", 98)),
+            int(dados.get("heartRate", 80)),
+            float(dados.get("temperature", 36.5)),
+            int(dados.get("systolic", 120)),
+            int(dados.get("diastolic", 80)),
+            bool(dados.get("conscious", True)),
+        )
+        return jsonify({
+            "id": atendimento_id,
+            "level": nivel,
+            "points": pontos,
+            "motivos": motivos,
+            "mensagem": "Classificação simulada registrada."
+        }), 201
+    except (TypeError, ValueError, LookupError) as erro:
+        return resposta_erro(str(erro))
+    except sqlite3.Error:
+        return resposta_erro("Não foi possível registrar o atendimento.", 500)
+    finally:
+        conexao.close()
+
+
+@app.patch("/api/atendimentos/<int:atendimento_id>")
+def api_atualizar_atendimento(atendimento_id):
+    dados = request.get_json(silent=True) or {}
+    mapa_status = {
+        "waiting": "aguardando",
+        "active": "em atendimento",
+        "finished": "finalizado",
+    }
+    status = mapa_status.get(dados.get("status"))
+    if not status:
+        return resposta_erro("Status inválido.")
+    conexao = conectar()
+    try:
+        atualizar_status(conexao, atendimento_id, status)
+        return jsonify({"ok": True})
+    except LookupError as erro:
+        return resposta_erro(str(erro), 404)
+    except ValueError as erro:
+        return resposta_erro(str(erro))
+    finally:
+        conexao.close()
+
+
+@app.delete("/api/dados-demo")
+def api_limpar_dados_demo():
+    """Remove todos os registros fictícios para reiniciar a demonstração."""
+    conexao = conectar()
+    try:
+        conexao.execute("DELETE FROM atendimentos")
+        conexao.execute("DELETE FROM pacientes")
+        conexao.commit()
+        return jsonify({"ok": True, "mensagem": "Dados de demonstração removidos."})
+    finally:
+        conexao.close()
+
+
+def executar_web():
+    criar_tabelas(conectar())
+    app.run(host="127.0.0.1", port=5000, debug=False)
+
+
+
 if __name__ == "__main__":
     if "--testes" in sys.argv:
         executar_testes()
+    elif "--web" in sys.argv:
+        executar_web()
     else:
         menu()
