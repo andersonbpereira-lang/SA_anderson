@@ -781,10 +781,15 @@ def api_cadastrar_paciente():
             nascimento = hoje.replace(year=ano)
         except ValueError:
             nascimento = hoje.replace(year=ano, day=28)
-        paciente_id = cadastrar_paciente(
-            conectar(), nome, nascimento.isoformat(), sexo, peso, altura,
-            sangue, str(dados.get("allergies", "nenhuma"))
-        )
+        conexao = conectar()
+        try:
+            criar_tabelas(conexao)
+            paciente_id = cadastrar_paciente(
+                conexao, nome, nascimento.isoformat(), sexo, peso, altura,
+                sangue, str(dados.get("allergies", "nenhuma"))
+            )
+        finally:
+            conexao.close()
         return jsonify({"id": paciente_id, "mensagem": "Paciente cadastrado."}), 201
     except (TypeError, ValueError) as erro:
         return resposta_erro(str(erro))
@@ -896,7 +901,11 @@ def api_limpar_dados_demo():
 
 
 def executar_web():
-    criar_tabelas(conectar())
+    conexao = conectar()
+    try:
+        criar_tabelas(conexao)
+    finally:
+        conexao.close()
     app.run(host="127.0.0.1", port=5000, debug=False)
 
 
