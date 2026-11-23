@@ -45,7 +45,9 @@
             </form>
 
             <div class="demo">
-                Acesso de demonstração: <strong>admin / hospital123</strong>
+                <strong>Ambiente exclusivamente demonstrativo.</strong><br>
+                Usuário: admin | Senha: hospital123<br>
+                Não utilize dados reais. O login não oferece segurança real.
             </div>
         </div>
     </section>
@@ -75,6 +77,7 @@
                 </button>
             </nav>
 
+            <button id="clearDemoBtn" class="logout-btn" type="button">Limpar dados fictícios</button>
             <button id="logoutBtn" class="logout-btn">↪ Sair</button>
         </aside>
 
@@ -218,10 +221,11 @@
                 <div class="panel form-panel">
                     <div class="panel-heading">
                         <div>
-                            <h3>Novo atendimento</h3>
-                            <p>Registre as informações do paciente.</p>
+                            <h3>Novo atendimento — simulação</h3>
+                            <p>Registre informações fictícias para fins educacionais.</p>
                         </div>
                     </div>
+                    <p class="simulation-warning">SIMULAÇÃO EDUCACIONAL: a classificação e a fila são regras didáticas deste projeto. Não representam protocolo clínico, não fazem diagnóstico e não devem orientar atendimento real. Em uma situação de saúde real, procure profissionais e serviços de saúde.</p>
 
                     <form id="triageForm">
                         <div class="form-grid">
@@ -258,37 +262,38 @@
 
                             <div class="form-group">
                                 <label for="oxygen">Saturação (%)</label>
-                                <input id="oxygen" type="number" min="0" max="100" value="98">
+                                <input id="oxygen" type="number" min="0" max="100" value="98" required>
                             </div>
 
                             <div class="form-group">
                                 <label for="heartRate">Freq. cardíaca (bpm)</label>
-                                <input id="heartRate" type="number" min="0" value="80">
+                                <input id="heartRate" type="number" min="20" max="300" value="80" required>
                             </div>
 
                             <div class="form-group">
                                 <label for="temperature">Temperatura (°C)</label>
                                 <input id="temperature" type="number"
-                                    min="25" max="45" step="0.1" value="36.5">
+                                    min="30" max="45" step="0.1" value="36.5" required>
                             </div>
 
                             <div class="form-group">
                                 <label>Pressão (sis/dia)</label>
                                 <div class="pressure-fields">
-                                    <input id="systolic" type="number" placeholder="120">
-                                    <input id="diastolic" type="number" placeholder="80">
+                                    <input id="systolic" type="number" min="30" max="300" placeholder="120" required>
+                                    <input id="diastolic" type="number" min="20" max="200" placeholder="80" required>
                                 </div>
                             </div>
 
                             <div class="form-group">
                                 <label for="priority">Prioridade visual da fila</label>
-                                <select id="priority" required>
-                                    <option value="green">Verde — Baixa</option>
-                                    <option value="yellow">Amarela — Moderada</option>
-                                    <option value="orange">Laranja — Alta</option>
-                                    <option value="red">Vermelha — Imediata</option>
+                                <select id="priority" disabled>
+                                    <option value="blue">Azul — Não urgente (calculado)</option>
+                                    <option value="green">Verde — Pouco urgente (calculado)</option>
+                                    <option value="yellow">Amarela — Urgente (calculado)</option>
+                                    <option value="orange">Laranja — Muito urgente (calculado)</option>
+                                    <option value="red">Vermelha — Emergência (calculado)</option>
                                 </select>
-                                <small>Classificação demonstrativa definida pela equipe. Não substitui protocolo clínico.</small>
+                                <small>A prioridade é calculada pelo backend; este projeto não é ferramenta clínica.</small>
                             </div>
 
                             <div class="form-group checkbox-group">
@@ -344,6 +349,10 @@
                     <div class="form-group">
                         <label for="patientAge">Idade</label>
                         <input id="patientAge" type="number" min="0" max="120" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="patientSex">Sexo (cadastro didático)</label>
+                        <select id="patientSex" required><option value="M">Masculino</option><option value="F">Feminino</option></select>
                     </div>
                     <div class="form-group">
                         <label for="patientWeight">Peso (kg)</label>
