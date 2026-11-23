@@ -321,7 +321,7 @@ document.addEventListener("click", async (event) => {
     const id = button.dataset.deletePatient;
 
     const hasActive = appointments.some(item =>
-        item.String(patientId) === String(id) &&
+        String(item.patientId) === String(id) &&
         (item.status === "waiting" || item.status === "active")
     );
 
