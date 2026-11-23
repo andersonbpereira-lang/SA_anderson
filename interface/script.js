@@ -202,7 +202,7 @@ function calculateBMI(weight, height) {
 // ==========================================
 
 function getPatient(patientId) {
-    return patients.find(patient => patient.id === patientId);
+    return patients.find(patient => String(patient.id) === String(patientId));
 }
 
 // ==========================================
@@ -211,7 +211,7 @@ function getPatient(patientId) {
 
 function getPatientStatus(patientId) {
     const records = appointments.filter(
-        item => item.patientId === patientId
+        item => String(item.patientId) === String(patientId)
     );
 
     if (records.some(item => item.status === "active")) {
@@ -321,7 +321,7 @@ document.addEventListener("click", async (event) => {
     const id = button.dataset.deletePatient;
 
     const hasActive = appointments.some(item =>
-        item.patientId === id &&
+        item.String(patientId) === String(id) &&
         (item.status === "waiting" || item.status === "active")
     );
 
@@ -427,6 +427,11 @@ $("cancelTriage").addEventListener("click", () => {
 // ==========================================
 
 const priorityInfo = {
+    blue: {
+        label: "Azul — Não urgente",
+        color: "#4385c5",
+        order: 5
+    },
     red: {
         label: "Vermelha — Imediata",
         color: "#e5484d",
@@ -471,7 +476,7 @@ function getWaitingAppointments() {
 function renderSeverity() {
     const waiting = getWaitingAppointments();
 
-    const priorities = ["red", "orange", "yellow", "green"];
+    const priorities = ["red", "orange", "yellow", "green", "blue"];
 
     $("severityList").innerHTML = priorities.map(priority => {
         const info = priorityInfo[priority];
@@ -531,7 +536,8 @@ function renderQueue() {
             red: 1,
             orange: 2,
             yellow: 3,
-            green: 4
+            green: 4,
+            blue: 5
         };
 
         if (a.status === "waiting" && b.status === "waiting") {
