@@ -9,27 +9,34 @@
 const DEMO_USER = "admin";
 const DEMO_PASSWORD = "hospital123";
 
-// Armazenamento local de demonstração
-let patients = JSON.parse(localStorage.getItem("hc_patients") || "[]");
-let appointments = JSON.parse(localStorage.getItem("hc_appointments") || "[]");
-
+// Persistência centralizada na API Flask/SQLite.
+let patients = [];
+let appointments = [];
 let toastTimer;
+
+async function api(path, options = {}) {
+    const response = await fetch(path, {
+        ...options,
+        headers: { "Content-Type": "application/json", ...(options.headers || {}) }
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.erro || "Falha na comunicação com o servidor.");
+    return body;
+}
+async function loadData() {
+    const data = await api("/api/dados");
+    patients = data.patients || [];
+    appointments = data.appointments || [];
+    renderAll();
+}
+function handleError(error) {
+    console.error(error);
+    notify(error.message || "Ocorreu um erro inesperado.");
+}
 
 // Elementos principais
 const $ = (id) => document.getElementById(id);
 
-// ==========================================
-// ARMAZENAMENTO
-// ==========================================
-
-function saveData() {
-    localStorage.setItem("hc_patients", JSON.stringify(patients));
-    localStorage.setItem("hc_appointments", JSON.stringify(appointments));
-}
-
-function generateId() {
-    return "HC-" + Date.now().toString().slice(-7);
-}
 
 // ==========================================
 // NOTIFICAÇÕES
@@ -59,25 +66,18 @@ $("togglePassword").addEventListener("click", () => {
         password.type === "password" ? "text" : "password";
 });
 
-$("loginForm").addEventListener("submit", (event) => {
+$("loginForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-
-    const username = $("username").value.trim();
-    const password = $("password").value;
-
-    if (username === DEMO_USER && password === DEMO_PASSWORD) {
+    try {
+        await api("/api/login", { method: "POST", body: JSON.stringify({
+            username: $("username").value.trim(), password: $("password").value
+        }) });
         $("loginError").textContent = "";
-
+        await loadData();
         $("loginScreen").classList.add("hidden");
         $("appScreen").classList.remove("hidden");
-
-        renderAll();
-        notify("Bem-vindo ao HospitalCare!");
-
-    } else {
-        $("loginError").textContent =
-            "Usuário ou senha incorretos.";
-    }
+        notify("Acesso demonstrativo iniciado.");
+    } catch (error) { $("loginError").textContent = error.message; }
 });
 
 $("logoutBtn").addEventListener("click", () => {
@@ -163,38 +163,28 @@ $("patientModal").addEventListener("click", (event) => {
 // CADASTRAR PACIENTE
 // ==========================================
 
-$("patientForm").addEventListener("submit", (event) => {
+$("patientForm").addEventListener("submit", async (event) => {
     event.preventDefault();
-
     const name = $("patientName").value.trim();
     const age = Number($("patientAge").value);
     const weight = Number($("patientWeight").value);
     const height = Number($("patientHeight").value);
-
-    if (!name || age < 0 || age > 120 ||
-        weight <= 0 || height <= 0 || height > 2.8) {
-        notify("Confira os dados do paciente.");
+    if (name.length < 3 || !Number.isInteger(age) || age < 0 || age > 120 ||
+        !Number.isFinite(weight) || weight < 0.5 || weight > 400 ||
+        !Number.isFinite(height) || height < 0.3 || height > 2.6) {
+        notify("Confira nome, idade, peso e altura.");
         return;
     }
-
-    const patient = {
-        id: generateId(),
-        name,
-        age,
-        weight,
-        height,
-        blood: $("patientBlood").value,
-        allergies: $("patientAllergies").value.trim() || "Não informado",
-        createdAt: new Date().toLocaleDateString("pt-BR")
-    };
-
-    patients.push(patient);
-
-    saveData();
-    closePatientModal();
-    renderAll();
-
-    notify("Paciente cadastrado com sucesso!");
+    try {
+        await api("/api/pacientes", { method: "POST", body: JSON.stringify({
+            name, age, weight, height, sex: $("patientSex").value,
+            blood: $("patientBlood").value,
+            allergies: $("patientAllergies").value.trim() || "nenhuma"
+        }) });
+        closePatientModal();
+        await loadData();
+        notify("Paciente cadastrado no SQLite.");
+    } catch (error) { handleError(error); }
 });
 
 // ==========================================
@@ -323,7 +313,7 @@ function escapeHTML(value) {
 // EXCLUIR PACIENTE
 // ==========================================
 
-document.addEventListener("click", (event) => {
+document.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-delete-patient]");
 
     if (!button) return;
@@ -344,16 +334,11 @@ document.addEventListener("click", (event) => {
         return;
     }
 
-    patients = patients.filter(patient => patient.id !== id);
-
-    appointments = appointments.filter(
-        item => item.patientId !== id
-    );
-
-    saveData();
-    renderAll();
-
-    notify("Paciente excluído.");
+    try {
+        await api("/api/pacientes/" + encodeURIComponent(id), { method: "DELETE" });
+        await loadData();
+        notify("Paciente excluído.");
+    } catch (error) { handleError(error); }
 });
 
 // ==========================================
@@ -390,85 +375,45 @@ $("pain").addEventListener("input", () => {
 // REGISTRAR ATENDIMENTO
 // ==========================================
 
-$("triageForm").addEventListener("submit", (event) => {
+$("triageForm").addEventListener("submit", async (event) => {
     event.preventDefault();
 
     const patientId = $("patientSelect").value;
-
     if (!getPatient(patientId)) {
         notify("Selecione um paciente cadastrado.");
         return;
     }
-
-    const existingActive = appointments.some(item =>
-        item.patientId === patientId &&
-        (item.status === "waiting" || item.status === "active")
-    );
-
-    if (existingActive) {
-        notify("Este paciente já possui atendimento em andamento.");
-        return;
-    }
-
     const oxygen = Number($("oxygen").value);
     const heartRate = Number($("heartRate").value);
     const temperature = Number($("temperature").value);
     const systolic = Number($("systolic").value);
     const diastolic = Number($("diastolic").value);
     const pain = Number($("pain").value);
-
-    if (
-        !Number.isFinite(oxygen) || oxygen < 0 || oxygen > 100 ||
-        !Number.isFinite(heartRate) || heartRate <= 0 ||
-        !Number.isFinite(temperature) || temperature < 25 || temperature > 45 ||
-        !Number.isFinite(systolic) || systolic <= 0 ||
-        !Number.isFinite(diastolic) || diastolic <= 0
-    ) {
-        notify("Confira os valores dos sinais vitais.");
+    const complaint = $("complaint").value.trim();
+    if (complaint.length < 3 || oxygen < 0 || oxygen > 100 ||
+        heartRate < 20 || heartRate > 300 || temperature < 30 || temperature > 45 ||
+        systolic < 30 || systolic > 300 || diastolic < 20 || diastolic > 200) {
+        notify("Confira a queixa e os valores informados.");
         return;
     }
-
-    const appointment = {
-        id: generateId(),
-        patientId,
-        complaint: $("complaint").value.trim(),
-        injury: $("injury").value,
-        pain,
-        oxygen,
-        heartRate,
-        temperature,
-        systolic,
-        diastolic,
-        conscious: $("conscious").checked,
-        priority: $("priority").value,
-        status: "waiting",
-        createdAt: new Date().toISOString()
-    };
-
-    if (!appointment.complaint) {
-        notify("Informe a queixa principal.");
-        return;
-    }
-
-    appointments.push(appointment);
-
-    saveData();
-
-    $("triageForm").reset();
-    $("painValue").textContent = "0";
-
-    $("oxygen").value = 98;
-    $("heartRate").value = 80;
-    $("temperature").value = 36.5;
-    $("systolic").value = 120;
-    $("diastolic").value = 80;
-    $("conscious").checked = true;
-    $("priority").value = "green";
-
-    renderAll();
-    navigate("queue");
-
-    notify("Atendimento registrado com sucesso!");
+    try {
+        await api("/api/atendimentos", { method: "POST", body: JSON.stringify({
+            patientId: Number(patientId), complaint, injury: $("injury").value,
+            pain, oxygen, heartRate, temperature, systolic, diastolic,
+            conscious: $("conscious").checked
+        }) });
+        $("triageForm").reset();
+        $("painValue").textContent = "0";
+        $("oxygen").value = 98;
+        $("heartRate").value = 80;
+        $("temperature").value = 36.5;
+        $("systolic").value = 120;
+        $("diastolic").value = 80;
+        $("conscious").checked = true;
+        await loadData();
+        navigate("queue");
+        notify("Atendimento simulado registrado.");
+    } catch (error) { handleError(error); }
 });
 
 $("cancelTriage").addEventListener("click", () => {
@@ -675,7 +620,7 @@ function renderQueue() {
 // INICIAR E FINALIZAR ATENDIMENTO
 // ==========================================
 
-document.addEventListener("click", (event) => {
+document.addEventListener("click", async (event) => {
     const startButton = event.target.closest("[data-start]");
     const finishButton = event.target.closest("[data-finish]");
 
@@ -695,12 +640,13 @@ document.addEventListener("click", (event) => {
             return;
         }
 
-        item.status = "active";
-
-        saveData();
-        renderAll();
-
-        notify("Atendimento iniciado.");
+        try {
+            await api("/api/atendimentos/" + item.id, {
+                method: "PATCH", body: JSON.stringify({ status: "active" })
+            });
+            await loadData();
+            notify("Atendimento iniciado.");
+        } catch (error) { handleError(error); }
     }
 
     if (finishButton) {
@@ -710,13 +656,13 @@ document.addEventListener("click", (event) => {
 
         if (!item || item.status !== "active") return;
 
-        item.status = "finished";
-        item.finishedAt = new Date().toISOString();
-
-        saveData();
-        renderAll();
-
-        notify("Atendimento finalizado.");
+        try {
+            await api("/api/atendimentos/" + item.id, {
+                method: "PATCH", body: JSON.stringify({ status: "finished" })
+            });
+            await loadData();
+            notify("Atendimento finalizado.");
+        } catch (error) { handleError(error); }
     }
 });
 
@@ -772,5 +718,16 @@ $("newPatientBtn").addEventListener("contextmenu", event => {
     openPatientModal();
 });
 
-// Inicialização
-renderAll();
+// Inicialização: a interface deve ser aberta pelo servidor Flask.
+loadData().catch(handleError);
+const clearDemoButton = $("clearDemoBtn");
+if (clearDemoButton) {
+    clearDemoButton.addEventListener("click", async () => {
+        if (!confirm("Isso apagará todos os registros fictícios. Continuar?")) return;
+        try {
+            await api("/api/dados-demo", { method: "DELETE" });
+            await loadData();
+            notify("Dados de demonstração removidos.");
+        } catch (error) { handleError(error); }
+    });
+}
