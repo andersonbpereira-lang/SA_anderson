@@ -1,0 +1,383 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HospitalCare | Gestão Hospitalar</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- LOGIN -->
+    <section id="loginScreen" class="login-screen">
+        <div class="login-card">
+            <div class="brand">
+                <span class="brand-icon">✚</span>
+                <span>HospitalCare</span>
+            </div>
+
+            <h1>Triagem inteligente,<br><span>decisões mais rápidas.</span></h1>
+            <p class="description">
+                Cadastro de pacientes, sinais vitais e classificação
+                de gravidade por cores em um só lugar.
+            </p>
+
+            <form id="loginForm">
+                <h2>Acesso ao sistema</h2>
+                <p>Entre com seu usuário e senha.</p>
+
+                <label for="username">Usuário</label>
+                <input id="username" type="text"
+                    placeholder="Digite seu usuário" required>
+
+                <label for="password">Senha</label>
+                <div class="password-box">
+                    <input id="password" type="password"
+                        placeholder="Digite sua senha" required>
+                    <button type="button" id="togglePassword">👁</button>
+                </div>
+
+                <button class="primary-btn" type="submit">Entrar</button>
+                <div id="loginError" class="error-message"></div>
+            </form>
+
+            <div class="demo">
+                Acesso de demonstração: <strong>admin / hospital123</strong>
+            </div>
+        </div>
+    </section>
+
+    <!-- SISTEMA -->
+    <section id="appScreen" class="app-screen hidden">
+
+        <aside class="sidebar">
+            <div class="brand sidebar-brand">
+                <span class="brand-icon">✚</span>
+                <span>HospitalCare</span>
+            </div>
+
+            <nav>
+                <button class="nav-item active" data-section="dashboard">
+                    <span>▦</span> Painel
+                </button>
+                <button class="nav-item" data-section="patients">
+                    <span>♙</span> Pacientes
+                </button>
+                <button class="nav-item" data-section="triage">
+                    <span>♥</span> Triagem
+                </button>
+                <button class="nav-item" data-section="queue">
+                    <span>☷</span> Fila
+                    <span class="nav-count" id="queueCount">0</span>
+                </button>
+            </nav>
+
+            <button id="logoutBtn" class="logout-btn">↪ Sair</button>
+        </aside>
+
+        <main class="main-content">
+            <header class="topbar">
+                <div>
+                    <h2 id="pageTitle">Painel</h2>
+                    <p>Central de gestão e atendimento hospitalar</p>
+                </div>
+                <div class="user-profile">
+                    <div class="avatar">AD</div>
+                    <div>
+                        <strong>Administrador</strong>
+                        <small>Equipe hospitalar</small>
+                    </div>
+                </div>
+            </header>
+
+            <!-- DASHBOARD -->
+            <section id="dashboardSection" class="content-section">
+
+                <div class="welcome">
+                    <div>
+                        <h2>Bem-vindo ao HospitalCare</h2>
+                        <p>Acompanhe os atendimentos e a situação dos pacientes.</p>
+                    </div>
+                    <button class="primary-btn" id="newPatientBtn">
+                        + Novo paciente
+                    </button>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span>Total de pacientes</span>
+                        <strong id="totalPatients">0</strong>
+                        <small>Pacientes cadastrados</small>
+                    </div>
+                    <div class="stat-card">
+                        <span>Aguardando</span>
+                        <strong id="waitingPatients">0</strong>
+                        <small>Na fila de atendimento</small>
+                    </div>
+                    <div class="stat-card">
+                        <span>Em atendimento</span>
+                        <strong id="activePatients">0</strong>
+                        <small>Atendimentos iniciados</small>
+                    </div>
+                    <div class="stat-card">
+                        <span>Finalizados</span>
+                        <strong id="finishedPatients">0</strong>
+                        <small>Atendimentos concluídos</small>
+                    </div>
+                </div>
+
+                <div class="dashboard-grid">
+                    <div class="panel">
+                        <div class="panel-heading">
+                            <h3>Fila por gravidade</h3>
+                        </div>
+                        <div id="severityList" class="severity-list"></div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-heading">
+                            <h3>Próximo a ser atendido</h3>
+                        </div>
+                        <div id="nextPatient" class="next-patient">
+                            <span class="empty-icon">♙</span>
+                            <p>Nenhum paciente aguardando.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel patient-panel">
+                    <div class="panel-heading">
+                        <h3>Pacientes cadastrados</h3>
+                        <div class="table-actions">
+                            <input id="searchInput" type="search"
+                                placeholder="Buscar por nome ou ID...">
+                            <button class="primary-btn" id="tableNewPatient">
+                                + Novo paciente
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Paciente</th>
+                                    <th>Idade</th>
+                                    <th>Peso</th>
+                                    <th>Altura</th>
+                                    <th>IMC</th>
+                                    <th>Sangue</th>
+                                    <th>Alergias</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="patientsTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PACIENTES -->
+            <section id="patientsSection" class="content-section hidden">
+                <div class="panel">
+                    <div class="panel-heading">
+                        <h3>Cadastro de pacientes</h3>
+                        <button class="primary-btn" id="patientsNewBtn">
+                            + Novo paciente
+                        </button>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Paciente</th>
+                                    <th>Idade</th>
+                                    <th>Peso</th>
+                                    <th>Altura</th>
+                                    <th>IMC</th>
+                                    <th>Sangue</th>
+                                    <th>Alergias</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="patientsTable2"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TRIAGEM -->
+            <section id="triageSection" class="content-section hidden">
+                <div class="panel form-panel">
+                    <div class="panel-heading">
+                        <div>
+                            <h3>Novo atendimento</h3>
+                            <p>Registre as informações do paciente.</p>
+                        </div>
+                    </div>
+
+                    <form id="triageForm">
+                        <div class="form-grid">
+                            <div class="form-group full">
+                                <label for="patientSelect">Paciente</label>
+                                <select id="patientSelect" required>
+                                    <option value="">Selecione um paciente</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group full">
+                                <label for="complaint">Queixa principal</label>
+                                <input id="complaint" type="text"
+                                    placeholder="Ex.: queda de bicicleta" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="injury">Tipo de ferimento</label>
+                                <select id="injury">
+                                    <option value="Não informado">Selecione</option>
+                                    <option>Corte</option>
+                                    <option>Contusão</option>
+                                    <option>Queda</option>
+                                    <option>Queimadura</option>
+                                    <option>Fratura suspeita</option>
+                                    <option>Outro</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="pain">Nível de dor: <span id="painValue">0</span>/10</label>
+                                <input id="pain" type="range" min="0" max="10" value="0">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="oxygen">Saturação (%)</label>
+                                <input id="oxygen" type="number" min="0" max="100" value="98">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="heartRate">Freq. cardíaca (bpm)</label>
+                                <input id="heartRate" type="number" min="0" value="80">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="temperature">Temperatura (°C)</label>
+                                <input id="temperature" type="number"
+                                    min="25" max="45" step="0.1" value="36.5">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Pressão (sis/dia)</label>
+                                <div class="pressure-fields">
+                                    <input id="systolic" type="number" placeholder="120">
+                                    <input id="diastolic" type="number" placeholder="80">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="priority">Prioridade visual da fila</label>
+                                <select id="priority" required>
+                                    <option value="green">Verde — Baixa</option>
+                                    <option value="yellow">Amarela — Moderada</option>
+                                    <option value="orange">Laranja — Alta</option>
+                                    <option value="red">Vermelha — Imediata</option>
+                                </select>
+                                <small>Classificação demonstrativa definida pela equipe. Não substitui protocolo clínico.</small>
+                            </div>
+
+                            <div class="form-group checkbox-group">
+                                <label>
+                                    <input id="conscious" type="checkbox" checked>
+                                    Paciente consciente
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button" class="secondary-btn" id="cancelTriage">
+                                Cancelar
+                            </button>
+                            <button type="submit" class="primary-btn">
+                                Registrar atendimento
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- FILA -->
+            <section id="queueSection" class="content-section hidden">
+                <div class="panel">
+                    <div class="panel-heading">
+                        <div>
+                            <h3>Fila de atendimento</h3>
+                            <p>Acompanhamento dos atendimentos registrados.</p>
+                        </div>
+                    </div>
+                    <div id="queueList" class="queue-list"></div>
+                </div>
+            </section>
+
+        </main>
+    </section>
+
+    <!-- MODAL DE PACIENTE -->
+    <div id="patientModal" class="modal hidden">
+        <div class="modal-card">
+            <div class="modal-heading">
+                <h3>Novo paciente</h3>
+                <button type="button" id="closeModal" class="close-btn">×</button>
+            </div>
+
+            <form id="patientForm">
+                <div class="form-grid">
+                    <div class="form-group full">
+                        <label for="patientName">Nome completo</label>
+                        <input id="patientName" required placeholder="Nome do paciente">
+                    </div>
+                    <div class="form-group">
+                        <label for="patientAge">Idade</label>
+                        <input id="patientAge" type="number" min="0" max="120" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="patientWeight">Peso (kg)</label>
+                        <input id="patientWeight" type="number" min="0.1" step="0.1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="patientHeight">Altura (m)</label>
+                        <input id="patientHeight" type="number" min="0.1" max="2.8" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="patientBlood">Tipo sanguíneo</label>
+                        <select id="patientBlood">
+                            <option>Não informado</option>
+                            <option>A+</option><option>A-</option>
+                            <option>B+</option><option>B-</option>
+                            <option>AB+</option><option>AB-</option>
+                            <option>O+</option><option>O-</option>
+                        </select>
+                    </div>
+                    <div class="form-group full">
+                        <label for="patientAllergies">Alergias</label>
+                        <input id="patientAllergies" placeholder="Ex.: nenhuma conhecida">
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="secondary-btn" id="cancelModal">Cancelar</button>
+                    <button type="submit" class="primary-btn">Salvar paciente</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
