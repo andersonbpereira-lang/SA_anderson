@@ -824,3 +824,10 @@ td {
         width: 100%;
     }
 }
+
+.simulation-warning {
+    margin: 0 0 22px; padding: 14px 16px;
+    border-left: 4px solid #d48b18; border-radius: 8px;
+    background: #fff7e6; color: #76500d;
+    font-size: 12px; line-height: 1.6;
+}
