@@ -7,13 +7,14 @@ O que o programa faz:
   1. Cadastra pacientes (nome, nascimento, sexo, peso, altura, tipo sanguíneo,
      alergias) e calcula o IMC automaticamente.
   2. Registra atendimentos (queixa, tipo de ferimento, sinais vitais, dor).
-  3. Calcula a GRAVIDADE do paciente (classificação por cores, inspirada no
-     Protocolo de Manchester) e monta a fila de atendimento por prioridade.
+  3. Aplica uma regra didática de prioridade por cores e monta uma fila
+     demonstrativa. Não implementa protocolo clínico nem orienta atendimento real.
   4. Guarda tudo em um banco de dados SQLite.
 
-Como executar:
-  python app.py            -> abre o menu
-  python app.py --testes   -> roda os testes automáticos
+Como executar a partir da raiz do repositório:
+  python codigo/app.py            -> abre o menu de terminal
+  python codigo/app.py --web      -> inicia a interface Flask
+  python codigo/app.py --testes   -> roda os testes automáticos
 
 Use somente dados fictícios (nada de dados pessoais reais).
 """
@@ -156,8 +157,9 @@ def calcular_idade(data_nascimento):
 def calcular_gravidade(tipo_ferimento, nivel_dor, saturacao, freq_cardiaca,
                        temperatura, pressao_sistolica, consciente):
     """
-    Calcula a gravidade somando pontos de risco.
-    Retorna (nivel, pontos, motivos).
+    Aplica uma regra de pontuação exclusivamente didática.
+    Retorna (nivel, pontos, motivos). Não é instrumento clínico, diagnóstico
+    ou protocolo validado e não deve orientar atendimento real.
 
     Pontuação final -> nível:
       >= 10 emergência (vermelho) | 7-9 muito urgente (laranja)
