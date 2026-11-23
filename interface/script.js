@@ -383,6 +383,14 @@ $("triageForm").addEventListener("submit", async (event) => {
         notify("Selecione um paciente cadastrado.");
         return;
     }
+    const patientHasOpenVisit = appointments.some(item =>
+        String(item.patientId) === String(patientId) &&
+        (item.status === "waiting" || item.status === "active")
+    );
+    if (patientHasOpenVisit) {
+        notify("Este paciente já possui atendimento em andamento.");
+        return;
+    }
     const oxygen = Number($("oxygen").value);
     const heartRate = Number($("heartRate").value);
     const temperature = Number($("temperature").value);
@@ -632,7 +640,7 @@ document.addEventListener("click", async (event) => {
 
     if (startButton) {
         const item = appointments.find(
-            appointment => appointment.id === startButton.dataset.start
+            appointment => String(appointment.id) === String(startButton.dataset.start)
         );
 
         if (!item || item.status !== "waiting") return;
@@ -657,7 +665,7 @@ document.addEventListener("click", async (event) => {
 
     if (finishButton) {
         const item = appointments.find(
-            appointment => appointment.id === finishButton.dataset.finish
+            appointment => String(appointment.id) === String(finishButton.dataset.finish)
         );
 
         if (!item || item.status !== "active") return;
