@@ -732,8 +732,7 @@ $("newPatientBtn").addEventListener("contextmenu", event => {
     openPatientModal();
 });
 
-// Inicialização: a interface deve ser aberta pelo servidor Flask.
-loadData().catch(handleError);
+// Os dados só são solicitados ao servidor após o acesso demonstrativo.
 const clearDemoButton = $("clearDemoBtn");
 if (clearDemoButton) {
     clearDemoButton.addEventListener("click", async () => {
